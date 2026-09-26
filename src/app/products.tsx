@@ -15,33 +15,31 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-type Producto = {
+type TaskType = {
   id: number;
   nombre: string;
-  proveedor: string;
-  precio: number;
-  stock: number;
+  date: string;
+  responsable: string;
 };
 
-export default function ProductsScreen() {
+export default function TasksScreen() {
   const theme = useTheme();
 
-  const [products, setProducts] = useState<Producto[]>([]);
+  const [tasks, setTasks] = useState<TaskType[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Estado del formulario que aparece en el Modal
   const [modalVisible, setModalVisible] = useState(false);
-  const [productoEditando, setProductoEditando] = useState<Producto | null>(null);
+  const [taskEditando, settaskEditando] = useState<TaskType | null>(null);
   const [nombre, setNombre] = useState('');
-  const [proveedor, setProveedor] = useState('');
-  const [precio, setPrecio] = useState('');
-  const [stock, setStock] = useState('');
+  const [date, setDate] = useState('');
+  const [responsable, setResponsable] = useState('');
   const [guardando, setGuardando] = useState(false);
 
-  const cargarProducts = async () => {
+  const cargarTasks = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase.from('products').select('*').order('id');
+      const { data, error } = await supabase.from('tasks').select('*').order('id');
 
       if (error) {
         Alert.alert('Ha ocurrido un error', error.message);
@@ -49,7 +47,7 @@ export default function ProductsScreen() {
       }
 
       // Supabase devuelve las filas sin tipos, así que las casteamos.
-      setProducts((data ?? []) as Producto[]);
+      setTasks((data ?? []) as TaskType[]);
     } catch (err) {
       Alert.alert('Ha ocurrido un error', err instanceof Error ? err.message : String(err));
     } finally {
@@ -58,38 +56,28 @@ export default function ProductsScreen() {
   };
 
   useEffect(() => {
-    cargarProducts();
+    cargarTasks();
   }, []);
 
   const abrirNuevo = () => {
-    setProductoEditando(null);
+    settaskEditando(null);
     setNombre('');
-    setProveedor('');
-    setPrecio('');
-    setStock('');
+    setDate('');
+    setResponsable('');
     setModalVisible(true);
   };
 
-  const abrirEdicion = (producto: Producto) => {
-    setProductoEditando(producto);
-    setNombre(producto.nombre);
-    setProveedor(producto.proveedor);
-    setPrecio(String(producto.precio));
-    setStock(String(producto.stock));
+  const abrirEdicion = (item: TaskType) => {
+    settaskEditando(item);
+    setNombre(item.nombre);
+    setDate(item.date);
+    setResponsable(item.responsable);
     setModalVisible(true);
   };
 
-  const guardarProducto = async () => {
-    if (!nombre.trim() || !proveedor.trim()) {
-      Alert.alert('Datos incompletos', 'El nombre y el proveedor son obligatorios.');
-      return;
-    }
-
-    const precioNum = Number(precio);
-    const stockNum = Number(stock);
-
-    if (Number.isNaN(precioNum) || precioNum < 0 || Number.isNaN(stockNum) || stockNum < 0) {
-      Alert.alert('Valores inválidos', 'El precio y el stock deben ser números iguales o mayores a 0.');
+  const guardarTask = async () => {
+    if (!nombre.trim() || !date.trim() || !responsable.trim()) {
+      Alert.alert('Datos incompletos', 'Todos los campos son obligatorios.');
       return;
     }
 
@@ -97,15 +85,14 @@ export default function ProductsScreen() {
     try {
       const datos = {
         nombre: nombre.trim(),
-        proveedor: proveedor.trim(),
-        precio: precioNum,
-        stock: stockNum,
+        date: date.trim(),
+        responsable: responsable.trim(),
       };
 
-      // Si hay un producto en edición hacemos UPDATE, si no, INSERT.
-      const resultado = productoEditando
-        ? await supabase.from('products').update(datos).eq('id', productoEditando.id)
-        : await supabase.from('products').insert(datos);
+      // Si hay una tarea en edición hacemos UPDATE, si no, INSERT.
+      const resultado = taskEditando
+        ? await supabase.from('tasks').update(datos).eq('id', taskEditando.id)
+        : await supabase.from('tasks').insert(datos);
 
       if (resultado.error) {
         Alert.alert('Ha ocurrido un error', resultado.error.message);
@@ -113,7 +100,7 @@ export default function ProductsScreen() {
       }
 
       setModalVisible(false);
-      cargarProducts();
+      cargarTasks();
     } catch (err) {
       Alert.alert('Ha ocurrido un error', err instanceof Error ? err.message : String(err));
     } finally {
@@ -121,44 +108,44 @@ export default function ProductsScreen() {
     }
   };
 
-  const eliminarProducto = async (producto: Producto) => {
+  const eliminarTask = async (item: TaskType) => {
     try {
-      const { error } = await supabase.from('products').delete().eq('id', producto.id);
+      const { error } = await supabase.from('tasks').delete().eq('id', item.id);
 
       if (error) {
         Alert.alert('Ha ocurrido un error', error.message);
         return;
       }
 
-      setProducts((prev) => prev.filter((item) => item.id !== producto.id));
+      setTasks((prev) => prev.filter((t) => t.id !== item.id));
     } catch (err) {
       Alert.alert('Ha ocurrido un error', err instanceof Error ? err.message : String(err));
     }
   };
 
-  const confirmarEliminacion = (producto: Producto) => {
+  const confirmarEliminacion = (item: TaskType) => {
     // En web, Alert.alert no muestra diálogos; usamos el confirm del navegador.
     if (typeof window !== 'undefined' && typeof window.confirm === 'function') {
-      if (window.confirm(`¿Deseas eliminar "${producto.nombre}"?`)) {
-        eliminarProducto(producto);
+      if (window.confirm(`¿Deseas eliminar "${item.nombre}"?`)) {
+        eliminarTask(item);
       }
       return;
     }
 
-    Alert.alert('Eliminar producto', `¿Deseas eliminar "${producto.nombre}"?`, [
+    Alert.alert('Eliminar tarea', `¿Deseas eliminar "${item.nombre}"?`, [
       { text: 'Cancelar', style: 'cancel' },
-      { text: 'Eliminar', style: 'destructive', onPress: () => eliminarProducto(producto) },
+      { text: 'Eliminar', style: 'destructive', onPress: () => eliminarTask(item) },
     ]);
   };
 
-  const renderItem = ({ item }: { item: Producto }) => (
+  const renderItem = ({ item }: { item: TaskType }) => (
     <ThemedView type="backgroundElement" style={styles.card}>
       <ThemedView type="backgroundElement" style={styles.cardInfo}>
         <ThemedText type="smallBold">{item.nombre}</ThemedText>
         <ThemedText type="small" themeColor="textSecondary">
-          {item.proveedor} · Stock: {item.stock}
+          Fecha: {item.date}
         </ThemedText>
-        <ThemedText type="smallBold">Q{item.precio}</ThemedText>
+        <ThemedText type="smallBold">{item.responsable}</ThemedText>
       </ThemedView>
 
       <ThemedView type="backgroundElement" style={styles.cardActions}>
@@ -185,11 +172,11 @@ export default function ProductsScreen() {
     <ThemedView style={styles.container}>
       <SafeAreaView style={styles.safeArea}>
         <ThemedView style={styles.header}>
-          <ThemedText type="subtitle">Productos</ThemedText>
+          <ThemedText type="subtitle">Tareas</ThemedText>
           <Pressable style={({ pressed }) => pressed && styles.pressed} onPress={abrirNuevo}>
             <ThemedView type="backgroundSelected" style={styles.newProductButton}>
               <ThemedText type="small" style={styles.editButtonText}>
-                + Nuevo producto
+                + Nueva tarea
               </ThemedText>
             </ThemedView>
           </Pressable>
@@ -197,15 +184,15 @@ export default function ProductsScreen() {
 
         {loading ? (
           <ThemedText type="small" themeColor="textSecondary" style={styles.emptyText}>
-            Cargando productos…
+            Cargando tareas…
           </ThemedText>
-        ) : products.length === 0 ? (
+        ) : tasks.length === 0 ? (
           <ThemedText type="small" themeColor="textSecondary" style={styles.emptyText}>
-            No hay productos registrados.
+            No hay tareas registradas.
           </ThemedText>
         ) : (
           <FlatList
-            data={products}
+            data={tasks}
             keyExtractor={(item) => String(item.id)}
             renderItem={renderItem}
             contentContainerStyle={styles.listContent}
@@ -221,7 +208,7 @@ export default function ProductsScreen() {
         <View style={styles.modalOverlay}>
           <ThemedView type="backgroundElement" style={styles.modalCard}>
             <ThemedText type="subtitle">
-              {productoEditando ? 'Editar producto' : 'Nuevo producto'}
+              {taskEditando ? 'Editar tarea' : 'Nueva tarea'}
             </ThemedText>
 
             <ThemedView type="backgroundElement" style={styles.field}>
@@ -230,50 +217,37 @@ export default function ProductsScreen() {
                 style={[styles.input, { backgroundColor: theme.background, color: theme.text }]}
                 value={nombre}
                 onChangeText={setNombre}
-                placeholder="Ej. Laptop Gamer"
+                placeholder="Tarea"
                 placeholderTextColor={theme.textSecondary}
               />
             </ThemedView>
 
             <ThemedView type="backgroundElement" style={styles.field}>
-              <ThemedText type="smallBold">Proveedor</ThemedText>
+              <ThemedText type="smallBold">Fecha</ThemedText>
               <TextInput
                 style={[styles.input, { backgroundColor: theme.background, color: theme.text }]}
-                value={proveedor}
-                onChangeText={setProveedor}
-                placeholder="Ej. Compugangas"
+                value={date}
+                onChangeText={setDate}
+                placeholder="Fecha"
                 placeholderTextColor={theme.textSecondary}
               />
             </ThemedView>
 
             <ThemedView type="backgroundElement" style={styles.field}>
-              <ThemedText type="smallBold">Precio (Q)</ThemedText>
+              <ThemedText type="smallBold">Responsable</ThemedText>
               <TextInput
                 style={[styles.input, { backgroundColor: theme.background, color: theme.text }]}
-                value={precio}
-                onChangeText={setPrecio}
-                placeholder="Ej. 2500.75"
+                value={responsable}
+                onChangeText={setResponsable}
+                placeholder="Carlos Ojeda"
                 placeholderTextColor={theme.textSecondary}
-                keyboardType="numeric"
               />
             </ThemedView>
 
-            <ThemedView type="backgroundElement" style={styles.field}>
-              <ThemedText type="smallBold">Stock</ThemedText>
-              <TextInput
-                style={[styles.input, { backgroundColor: theme.background, color: theme.text }]}
-                value={stock}
-                onChangeText={setStock}
-                placeholder="Ej. 10"
-                placeholderTextColor={theme.textSecondary}
-                keyboardType="number-pad"
-              />
-            </ThemedView>
-
-            <Pressable disabled={guardando} style={({ pressed }) => pressed && styles.pressed} onPress={guardarProducto}>
+            <Pressable disabled={guardando} style={({ pressed }) => pressed && styles.pressed} onPress={guardarTask}>
               <ThemedView type="backgroundSelected" style={styles.saveButton}>
                 <ThemedText type="small" style={styles.saveButtonText}>
-                  {guardando ? 'Guardando…' : 'Guardar producto'}
+                  {guardando ? 'Guardando…' : 'Guardar tarea'}
                 </ThemedText>
               </ThemedView>
             </Pressable>
